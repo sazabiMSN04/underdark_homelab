@@ -1,0 +1,111 @@
+---
+- name: Storage configuration for baator
+  hosts: baator
+  become: true
+  tasks:
+    # === NVMe RAID0 - VM Storage ===
+    - name: Check if NVMe RAID0 array exists
+      ansible.builtin.stat:
+        path: /dev/md0
+      register: md0_stat
+
+    - name: Create NVMe RAID0 array for VM storage
+      ansible.builtin.command:
+        cmd: mdadm --create /dev/md0 --level=0 --raid-devices=2 /dev/nvme0n1 /dev/nvme2n1 --run
+      when: not md0_stat.stat.exists
+
+    - name: Create volume group for VM storage
+      community.general.lvg:
+        vg: vg_vm
+        pvs: /dev/md0
+
+    - name: Create logical volume for VM storage
+      community.general.lvol:
+        vg: vg_vm
+        lv: lv_vm
+        size: 100%VG
+
+    - name: Create XFS filesystem on VM storage
+      community.general.filesystem:
+        fstype: xfs
+        dev: /dev/vg_vm/lv_vm
+
+    - name: Mount VM storage
+      ansible.posix.mount:
+        path: /var/lib/libvirt/images
+        src: /dev/vg_vm/lv_vm
+        fstype: xfs
+        state: mounted
+
+    # === SATA RAID10 - Data Storage ===
+    - name: Check if SATA RAID10 array exists
+      ansible.builtin.stat:
+        path: /dev/md1
+      register: md1_stat
+
+    - name: Create SATA RAID10 array for data storage
+      ansible.builtin.command:
+        cmd: mdadm --create /dev/md1 --level=10 --raid-devices=4 /dev/sda /dev/sdb /dev/sdc /dev/sdd --run
+      when: not md1_stat.stat.exists
+
+    - name: Create volume group for RAID10 data storage
+      community.general.lvg:
+        vg: vg_data
+        pvs:
+          - /dev/md1
+          - /dev/nvme1n1
+
+    - name: Create logical volume for RAID10 data
+      community.general.lvol:
+        vg: vg_data
+        lv: lv_raid10
+        pvs: /dev/md1
+        size: 10.92t
+
+    - name: Create XFS filesystem on RAID10 data
+      community.general.filesystem:
+        fstype: xfs
+        dev: /dev/vg_data/lv_raid10
+
+    - name: Mount RAID10 data storage
+      ansible.posix.mount:
+        path: /data/raid10
+        src: /dev/vg_data/lv_raid10
+        fstype: xfs
+        state: mounted
+
+    # === NVMe LVM Cache for RAID10 ===
+    - name: Create cache data LV on NVMe
+      community.general.lvol:
+        vg: vg_data
+        lv: lv_cache
+        pvs: /dev/nvme1n1
+        size: 228g
+
+    - name: Create cache metadata LV on NVMe
+      community.general.lvol:
+        vg: vg_data
+        lv: lv_cache_meta
+        pvs: /dev/nvme1n1
+        size: 1g
+
+    - name: Convert to cache pool
+      ansible.builtin.command:
+        cmd: lvconvert --type cache-pool --poolmetadata vg_data/lv_cache_meta vg_data/lv_cache --yes
+      register: cache_pool
+      changed_when: cache_pool.rc == 0
+      failed_when: cache_pool.rc != 0 and 'already' not in cache_pool.stderr
+
+    - name: Attach cache pool to RAID10 data volume
+      ansible.builtin.command:
+        cmd: lvconvert --type cache --cachepool vg_data/lv_cache vg_data/lv_raid10 --yes
+      register: cache_attach
+      changed_when: cache_attach.rc == 0
+      failed_when: cache_attach.rc != 0 and 'already' not in cache_attach.stderr
+
+    # === Persist mdadm config ===
+    - name: Save mdadm configuration
+      ansible.builtin.shell:
+        cmd: mdadm --detail --scan >> /etc/mdadm.conf
+      args:
+        creates: /etc/mdadm.conf
