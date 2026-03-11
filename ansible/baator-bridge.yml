@@ -1,0 +1,75 @@
+---
+- name: Network bridge configuration for baator
+  hosts: baator
+  become: true
+  tasks:
+    # === br-okd bridge on eno1 ===
+    - name: Create br-okd bridge
+      community.general.nmcli:
+        conn_name: br-okd
+        type: bridge
+        ifname: br-okd
+        method4: auto
+        state: present
+
+    - name: Remove existing eno1 connection
+      community.general.nmcli:
+        conn_name: eno1
+        state: absent
+
+    - name: Add eno1 as br-okd slave
+      community.general.nmcli:
+        conn_name: eno1-bridge
+        type: bridge-slave
+        ifname: eno1
+        master: br-okd
+        state: present
+
+    - name: Bring up br-okd
+      ansible.builtin.command:
+        cmd: nmcli con up br-okd
+
+    # === br-storage bridge on eno2 ===
+    - name: Create br-storage bridge
+      community.general.nmcli:
+        conn_name: br-storage
+        type: bridge
+        ifname: br-storage
+        method4: manual
+        ip4: 10.0.3.1/24
+        state: present
+
+    - name: Remove existing eno2 connection
+      community.general.nmcli:
+        conn_name: eno2
+        type: ethernet
+        state: absent
+
+    - name: Add eno2 as br-storage slave
+      community.general.nmcli:
+        conn_name: eno2-bridge
+        type: bridge-slave
+        ifname: eno2
+        master: br-storage
+        state: present
+
+    - name: Bring up br-storage
+      ansible.builtin.command:
+        cmd: nmcli con up br-storage
+
+    # === Remove default libvirt bridge ===
+    - name: Remove virbr0
+      community.general.nmcli:
+        conn_name: virbr0
+        state: absent
+      ignore_errors: true
+
+    - name: Destroy default libvirt network
+      ansible.builtin.command:
+        cmd: virsh net-destroy default
+      ignore_errors: true
+
+    - name: Undefine default libvirt network
+      ansible.builtin.command:
+        cmd: virsh net-undefine default
+      ignore_errors: true
