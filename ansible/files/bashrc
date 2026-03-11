@@ -1,0 +1,232 @@
+# ~/.bashrc - lantzops
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+# ───────────────────────────────────────────
+# History
+# ───────────────────────────────────────────
+HISTSIZE=10000
+HISTFILESIZE=20000
+HISTCONTROL=ignoreboth:erasedups
+shopt -s histappend
+
+# ───────────────────────────────────────────
+# Shell options
+# ───────────────────────────────────────────
+shopt -s checkwinsize
+shopt -s globstar
+shopt -s cdspell
+shopt -s dirspell
+shopt -s autocd
+
+# ───────────────────────────────────────────
+# Colors
+# ───────────────────────────────────────────
+RED='\[\e[0;31m\]'
+GREEN='\[\e[0;32m\]'
+YELLOW='\[\e[0;33m\]'
+BLUE='\[\e[0;34m\]'
+MAGENTA='\[\e[0;35m\]'
+CYAN='\[\e[0;36m\]'
+WHITE='\[\e[0;37m\]'
+BOLD_RED='\[\e[1;31m\]'
+BOLD_GREEN='\[\e[1;32m\]'
+BOLD_YELLOW='\[\e[1;33m\]'
+BOLD_BLUE='\[\e[1;34m\]'
+BOLD_MAGENTA='\[\e[1;35m\]'
+BOLD_CYAN='\[\e[1;36m\]'
+BOLD_WHITE='\[\e[1;37m\]'
+RESET='\[\e[0m\]'
+
+# ───────────────────────────────────────────
+# Git prompt
+# ───────────────────────────────────────────
+parse_git_branch() {
+    local branch
+    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git describe --tags --exact-match 2>/dev/null)
+    if [[ -n "$branch" ]]; then
+        local status=""
+        [[ -n $(git status --porcelain 2>/dev/null) ]] && status="${BOLD_RED}*"
+        echo -e " \e[0;35m(\e[0;33m${branch}${status}\e[0;35m)"
+    fi
+}
+
+# ───────────────────────────────────────────
+# Prompt
+# ───────────────────────────────────────────
+set_prompt() {
+    local last_exit=$?
+    local exit_color="${BOLD_GREEN}"
+    [[ $last_exit -ne 0 ]] && exit_color="${BOLD_RED}"
+
+    PS1=""
+    PS1+="${BOLD_BLUE}┌─["
+    PS1+="${BOLD_CYAN}\u"
+    PS1+="${BOLD_BLUE}@"
+    PS1+="${BOLD_MAGENTA}\h"
+    PS1+="${BOLD_BLUE}]─["
+    PS1+="${BOLD_GREEN}\w"
+    PS1+="${BOLD_BLUE}]"
+    PS1+="\$(parse_git_branch)"
+    PS1+="${RESET}\n"
+    PS1+="${BOLD_BLUE}└─"
+    PS1+="${exit_color}❯${RESET} "
+}
+PROMPT_COMMAND=set_prompt
+
+# ───────────────────────────────────────────
+# Exports
+# ───────────────────────────────────────────
+export EDITOR='nvim'
+export VISUAL='nvim'
+export PAGER='less'
+export LESS='-R --mouse'
+export PATH="$HOME/.local/bin:$PATH"
+
+# Colored man pages
+export LESS_TERMCAP_mb=$'\e[1;31m'
+export LESS_TERMCAP_md=$'\e[1;36m'
+export LESS_TERMCAP_me=$'\e[0m'
+export LESS_TERMCAP_se=$'\e[0m'
+export LESS_TERMCAP_so=$'\e[1;44;33m'
+export LESS_TERMCAP_ue=$'\e[0m'
+export LESS_TERMCAP_us=$'\e[1;32m'
+
+# ───────────────────────────────────────────
+# Aliases - General
+# ───────────────────────────────────────────
+alias ls='ls --color=auto'
+alias ll='ls -lAhF --color=auto'
+alias la='ls -A --color=auto'
+alias l='ls -CF --color=auto'
+alias lt='ls -lAhFt --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+alias diff='diff --color=auto'
+alias ip='ip -color=auto'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias mkdir='mkdir -pv'
+alias rm='rm -iv'
+alias cp='cp -iv'
+alias mv='mv -iv'
+alias df='df -hT'
+alias du='du -sh'
+alias free='free -h'
+alias cls='clear'
+
+# ───────────────────────────────────────────
+# Aliases - Editors
+# ───────────────────────────────────────────
+alias v='nvim'
+alias vi='nvim'
+alias vim='nvim'
+
+# ───────────────────────────────────────────
+# Aliases - Systemd
+# ───────────────────────────────────────────
+alias sc='sudo systemctl'
+alias scs='sudo systemctl status'
+alias sce='sudo systemctl enable --now'
+alias scd='sudo systemctl disable --now'
+alias scr='sudo systemctl restart'
+alias jf='journalctl -fu'
+
+# ───────────────────────────────────────────
+# Aliases - Network
+# ───────────────────────────────────────────
+alias ports='ss -tulnp'
+alias myip='curl -s ifconfig.me && echo'
+alias ping='ping -c 5'
+
+# ───────────────────────────────────────────
+# Aliases - Git
+# ───────────────────────────────────────────
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gl='git log --oneline --graph --decorate -20'
+alias gd='git diff'
+alias gb='git branch'
+alias gco='git checkout'
+
+# ───────────────────────────────────────────
+# Aliases - Ansible
+# ───────────────────────────────────────────
+alias ap='ansible-playbook'
+alias ai='ansible-inventory --list'
+alias apc='ansible-playbook --check --diff'
+
+# ───────────────────────────────────────────
+# Aliases - Kubernetes
+# ───────────────────────────────────────────
+alias k='kubectl'
+alias kg='kubectl get'
+alias kd='kubectl describe'
+alias kl='kubectl logs'
+alias kaf='kubectl apply -f'
+
+# ───────────────────────────────────────────
+# Functions
+# ───────────────────────────────────────────
+
+# Create a directory and cd into it
+mkcd() { mkdir -p "$1" && cd "$1"; }
+
+# Quick find
+ff() { find . -type f -iname "*$1*" 2>/dev/null; }
+fd() { find . -type d -iname "*$1*" 2>/dev/null; }
+
+# Extract any archive
+extract() {
+    if [[ -f "$1" ]]; then
+        case "$1" in
+            *.tar.bz2) tar xjf "$1"    ;;
+            *.tar.gz)  tar xzf "$1"    ;;
+            *.tar.xz)  tar xJf "$1"    ;;
+            *.bz2)     bunzip2 "$1"    ;;
+            *.rar)     unrar x "$1"    ;;
+            *.gz)      gunzip "$1"     ;;
+            *.tar)     tar xf "$1"     ;;
+            *.tbz2)    tar xjf "$1"    ;;
+            *.tgz)     tar xzf "$1"    ;;
+            *.zip)     unzip "$1"      ;;
+            *.Z)       uncompress "$1" ;;
+            *.7z)      7z x "$1"       ;;
+            *)         echo "'$1' cannot be extracted" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Quick system info
+sysinfo() {
+    echo -e "\n\e[1;36m── System ──────────────────\e[0m"
+    hostnamectl | head -8
+    echo -e "\n\e[1;36m── Resources ───────────────\e[0m"
+    echo "CPU:    $(grep -c ^processor /proc/cpuinfo) cores"
+    echo "Memory: $(free -h | awk '/^Mem:/ {print $3 "/" $2}')"
+    echo "Disk:   $(df -h / | awk 'NR==2 {print $3 "/" $2 " (" $5 " used)"}')"
+    echo "Uptime: $(uptime -p)"
+    echo ""
+}
+
+# ───────────────────────────────────────────
+# Bash completion
+# ───────────────────────────────────────────
+if [[ -f /etc/bash_completion ]]; then
+    . /etc/bash_completion
+elif [[ -f /usr/share/bash-completion/bash_completion ]]; then
+    . /usr/share/bash-completion/bash_completion
+fi
+
+# kubectl completion
+if command -v kubectl &>/dev/null; then
+    source <(kubectl completion bash)
+    complete -o default -F __start_kubectl k
+fi

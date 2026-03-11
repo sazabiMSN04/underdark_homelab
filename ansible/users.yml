@@ -1,0 +1,102 @@
+---
+- name: User management and dotfiles
+  hosts: all
+  become: true
+  tasks:
+    - name: Ensure lantzops user exists
+      ansible.builtin.user:
+        name: lantzops
+        shell: /bin/bash
+        groups: wheel
+        append: true
+        state: present
+
+    - name: Ensure SSH directory exists
+      ansible.builtin.file:
+        path: /home/lantzops/.ssh
+        state: directory
+        owner: lantzops
+        group: lantzops
+        mode: '0700'
+
+    - name: Deploy authorized key from kimmuriel
+      ansible.posix.authorized_key:
+        user: lantzops
+        key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+        state: present
+
+    - name: Deploy authorized key from iSH
+      ansible.posix.authorized_key:
+        user: lantzops
+        key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFxPLhxr0ZO16/ScUx6tpvqiu2NDMiDEFV+7t0t/IeJr lantzops@ish"
+        state: present
+       
+    - name: Deploy bashrc
+      ansible.builtin.copy:
+        src: files/bashrc
+        dest: /home/lantzops/.bashrc
+        owner: lantzops
+        group: lantzops
+        mode: '0644'
+
+    - name: Deploy gitconfig
+      ansible.builtin.copy:
+        src: files/gitconfig
+        dest: /home/lantzops/.gitconfig
+        owner: lantzops
+        group: lantzops
+        mode: '0644'
+
+    - name: Ensure neovim config directory exists
+      ansible.builtin.file:
+        path: /home/lantzops/.config/nvim
+        state: directory
+        owner: lantzops
+        group: lantzops
+        mode: '0755'
+
+    - name: Deploy neovim config
+      ansible.builtin.copy:
+        src: files/nvim/
+        dest: /home/lantzops/.config/nvim/
+        owner: lantzops
+        group: lantzops
+        mode: '0644'
+
+    - name: Deploy bashrc for root on kimmuriel
+      ansible.builtin.copy:
+        src: files/bashrc
+        dest: /root/.bashrc
+        owner: root
+        group: root
+        mode: '0644'
+      when: inventory_hostname == 'kimmuriel'
+
+    - name: Deploy gitconfig for root on kimmuriel
+      ansible.builtin.copy:
+        src: files/gitconfig
+        dest: /root/.gitconfig
+        owner: root
+        group: root
+        mode: '0644'
+      when: inventory_hostname == 'kimmuriel'
+
+    - name: Ensure neovim config directory for root on kimmuriel
+      ansible.builtin.file:
+        path: /root/.config/nvim
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      when: inventory_hostname == 'kimmuriel'
+
+    - name: Deploy neovim config for root on kimmuriel
+      ansible.builtin.copy:
+        src: files/nvim/
+        dest: /root/.config/nvim/
+        owner: root
+        group: root
+        mode: '0644'
+      when: inventory_hostname == 'kimmuriel'
+
+

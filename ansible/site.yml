@@ -1,0 +1,10 @@
+---
+- name: Import baseline
+  ansible.builtin.import_playbook: baseline.yml
+
+- name: Import SSH hardening
+  ansible.builtin.import_playbook: ssh-hardening.yml
+
+- name: Import user management
+  ansible.builtin.import_playbook: users.yml
+
